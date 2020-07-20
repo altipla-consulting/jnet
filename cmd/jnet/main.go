@@ -17,6 +17,12 @@ import (
 	"libs.altipla.consulting/errors"
 )
 
+var lib = []byte(`
+{
+  imageVersion:: std.native('imageVersion'),
+}
+`)
+
 func main() {
 	if err := run(); err != nil {
 		log.Fatal(errors.Stack(err))
@@ -24,6 +30,20 @@ func main() {
 }
 
 func run() error {
+	if err := os.MkdirAll("tmp", 0700); err != nil {
+		return errors.Trace(err)
+	}
+
+	dir, err := ioutil.TempDir("", "jnet")
+	if err != nil {
+		return errors.Trace(err)
+	}
+	defer os.RemoveAll(dir)
+
+	if err := ioutil.WriteFile(filepath.Join(dir, "jnet.jsonnet"), lib, 0600); err != nil {
+		return errors.Trace(err)
+	}
+
 	var flagOutput, flagFilter string
 	var flagEnv, flagDirectories []string
 	flag.StringVarP(&flagOutput, "output", "o", "-", "Output JSON file")
@@ -34,7 +54,7 @@ func run() error {
 
 	vm := jsonnet.MakeVM()
 	vm.Importer(&jsonnet.FileImporter{
-		JPaths: append(flagDirectories, "."),
+		JPaths: append(flagDirectories, ".", dir),
 	})
 
 	for _, v := range flagEnv {
